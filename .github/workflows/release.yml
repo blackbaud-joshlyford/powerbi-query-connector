@@ -235,6 +235,24 @@ jobs:
           build-output/RELEASE_NOTES.md
         token: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Debug - List all files being uploaded
+      shell: pwsh
+      run: |
+        Write-Host "📋 Files in build-output directory:"
+        Get-ChildItem build-output -Recurse | ForEach-Object { 
+          Write-Host "  $($_.FullName) - $($_.Length) bytes"
+        }
+        
+        Write-Host "🔍 MEZ file verification:"
+        $mezFiles = Get-ChildItem build-output/*.mez
+        foreach ($mezFile in $mezFiles) {
+          Write-Host "Checking: $($mezFile.Name)"
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($mezFile.FullName)
+          Write-Host "Contents of $($mezFile.Name):"
+          $zip.Entries | ForEach-Object { Write-Host "  $($_.FullName)" }
+          $zip.Dispose()
+        }
+
     - name: Build Summary
       shell: pwsh
       run: |
