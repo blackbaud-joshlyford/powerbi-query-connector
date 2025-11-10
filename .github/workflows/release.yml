@@ -101,14 +101,13 @@ jobs:
         Write-Host "✅ Copied connector file as .m"
         
         # Create [Content_Types].xml
-        $contentTypes = @'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-    <Default Extension="m" ContentType="application/x-powerquery-m"/>
-    <Default Extension="json" ContentType="application/json"/>
-    <Default Extension="png" ContentType="image/png"/>
-</Types>
-'@
+        $xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        $xmlTypes = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        $xmlM = '    <Default Extension="m" ContentType="application/x-powerquery-m"/>'
+        $xmlJson = '    <Default Extension="json" ContentType="application/json"/>'
+        $xmlPng = '    <Default Extension="png" ContentType="image/png"/>'
+        $xmlClose = '</Types>'
+        $contentTypes = "$xmlHeader`n$xmlTypes`n$xmlM`n$xmlJson`n$xmlPng`n$xmlClose"
         $contentTypes | Set-Content "$mezDir/[Content_Types].xml" -Encoding UTF8
         Write-Host "✅ Created Content_Types.xml"
         
