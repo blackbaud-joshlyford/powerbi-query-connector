@@ -29,9 +29,9 @@ jobs:
         $version = $tag -replace '^v', ''
         Write-Host "Extracted version: $version"
         
-        # Validate semantic versioning
-        if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            Write-Error "Invalid version format: $version. Expected format: x.y.z"
+        # Validate version format - supports both semantic (x.y.z) and date-based (yyyy.mm.dd.build)
+        if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            Write-Error "Invalid version format: $version. Expected format: x.y.z or yyyy.mm.dd.build"
             exit 1
         }
         
