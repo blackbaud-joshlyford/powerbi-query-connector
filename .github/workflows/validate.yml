@@ -1,0 +1,211 @@
+name: Validate PowerBI Connector
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest  # Using Linux to minimize costs
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup PowerShell
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        
+    - name: Validate PowerQuery Syntax
+      shell: pwsh
+      run: |
+        Write-Host "🔍 Validating PowerQuery M syntax..."
+        
+        # Read the .pq file
+        $pqFile = "BlackbaudJobConnector.pq"
+        if (-not (Test-Path $pqFile)) {
+            Write-Error "PowerQuery file not found: $pqFile"
+            exit 1
+        }
+        
+        $content = Get-Content $pqFile -Raw
+        Write-Host "✅ PowerQuery file found and readable"
+        
+        # Basic syntax validation
+        $errors = @()
+        
+        # Check for balanced parentheses
+        $openParens = ($content.ToCharArray() | Where-Object { $_ -eq '(' }).Count
+        $closeParens = ($content.ToCharArray() | Where-Object { $_ -eq ')' }).Count
+        if ($openParens -ne $closeParens) {
+            $errors += "Unbalanced parentheses: $openParens open, $closeParens close"
+        }
+        
+        # Check for balanced brackets
+        $openBrackets = ($content.ToCharArray() | Where-Object { $_ -eq '[' }).Count
+        $closeBrackets = ($content.ToCharArray() | Where-Object { $_ -eq ']' }).Count
+        if ($openBrackets -ne $closeBrackets) {
+            $errors += "Unbalanced brackets: $openBrackets open, $closeBrackets close"
+        }
+        
+        # Check for balanced braces
+        $openBraces = ($content.ToCharArray() | Where-Object { $_ -eq '{' }).Count
+        $closeBraces = ($content.ToCharArray() | Where-Object { $_ -eq '}' }).Count
+        if ($openBraces -ne $closeBraces) {
+            $errors += "Unbalanced braces: $openBraces open, $closeBraces close"
+        }
+        
+        # Check for required PowerQuery patterns
+        if ($content -notmatch 'section\s+\w+;') {
+            $errors += "Missing required 'section' declaration"
+        }
+        
+        if ($content -notmatch '\[DataSource\.Kind\s*=') {
+            $errors += "Missing DataSource.Kind declaration"
+        }
+        
+        # Check for ConnectorVersion
+        if ($content -notmatch 'ConnectorVersion\s*=\s*"[\d\.]+";') {
+            $errors += "Missing or invalid ConnectorVersion declaration"
+        }
+        
+        if ($errors.Count -gt 0) {
+            Write-Host "❌ PowerQuery syntax validation failed:"
+            $errors | ForEach-Object { Write-Host "  - $_" }
+            exit 1
+        }
+        
+        Write-Host "✅ PowerQuery syntax validation passed"
+
+    - name: Security Scan
+      shell: pwsh
+      run: |
+        Write-Host "🛡️ Scanning for security issues..."
+        
+        $pqFile = "BlackbaudJobConnector.pq"
+        $content = Get-Content $pqFile -Raw
+        $warnings = @()
+        $errors = @()
+        
+        # Check for hardcoded secrets patterns
+        $secretPatterns = @(
+            'client_secret\s*=\s*"[^"]{10,}"',
+            'api[_-]?key\s*=\s*"[^"]{10,}"',
+            'password\s*=\s*"[^"]{3,}"',
+            'secret\s*=\s*"[^"]{10,}"',
+            'token\s*=\s*"[^"]{20,}"'
+        )
+        
+        foreach ($pattern in $secretPatterns) {
+            if ($content -match $pattern) {
+                $errors += "Potential hardcoded secret detected: $($matches[0])"
+            }
+        }
+        
+        # Check for test/demo URLs that might be left in
+        if ($content -match 'localhost|127\.0\.0\.1|test\.') {
+            $warnings += "Test/localhost URLs detected - ensure these are not in production code"
+        }
+        
+        # Check for proper OAuth implementation
+        if ($content -match 'oauth' -and $content -notmatch 'PKCE') {
+            $warnings += "OAuth detected but PKCE implementation should be verified"
+        }
+        
+        # Check for proper error handling
+        if ($content -notmatch 'try\s+.*\s+otherwise') {
+            $warnings += "Consider adding more try/otherwise error handling"
+        }
+        
+        if ($errors.Count -gt 0) {
+            Write-Host "❌ Security scan failed:"
+            $errors | ForEach-Object { Write-Host "  - $_" }
+            exit 1
+        }
+        
+        if ($warnings.Count -gt 0) {
+            Write-Host "⚠️ Security warnings:"
+            $warnings | ForEach-Object { Write-Host "  - $_" }
+        }
+        
+        Write-Host "✅ Security scan passed"
+
+    - name: Code Quality Check
+      shell: pwsh
+      run: |
+        Write-Host "📊 Checking code quality..."
+        
+        $pqFile = "BlackbaudJobConnector.pq"
+        $content = Get-Content $pqFile -Raw
+        $warnings = @()
+        
+        # Check for proper documentation
+        if ($content -notmatch 'Documentation\.Name') {
+            $warnings += "Missing Documentation.Name in connector metadata"
+        }
+        
+        if ($content -notmatch 'Documentation\.Description') {
+            $warnings += "Missing Documentation.Description in connector metadata"
+        }
+        
+        # Check for version consistency
+        $versionMatch = $content | Select-String 'ConnectorVersion\s*=\s*"([\d\.]+)"'
+        if ($versionMatch) {
+            $version = $versionMatch.Matches[0].Groups[1].Value
+            Write-Host "Detected connector version: $version"
+            
+            # Validate semantic versioning
+            if ($version -notmatch '^\d+\.\d+\.\d+$') {
+                $warnings += "Version '$version' does not follow semantic versioning (x.y.z)"
+            }
+        }
+        
+        # Check for consistent naming
+        $sectionMatch = $content | Select-String 'section\s+(\w+);'
+        if ($sectionMatch) {
+            $sectionName = $sectionMatch.Matches[0].Groups[1].Value
+            if ($sectionName -ne "BlackbaudJobConnector") {
+                $warnings += "Section name '$sectionName' should match 'BlackbaudJobConnector'"
+            }
+        }
+        
+        if ($warnings.Count -gt 0) {
+            Write-Host "⚠️ Code quality warnings:"
+            $warnings | ForEach-Object { Write-Host "  - $_" }
+        } else {
+            Write-Host "✅ Code quality check passed"
+        }
+
+    - name: Validate Documentation
+      shell: pwsh
+      run: |
+        Write-Host "📚 Validating documentation..."
+        
+        $warnings = @()
+        
+        # Check for README
+        if (-not (Test-Path "README.md")) {
+            $warnings += "README.md file is missing"
+        }
+        
+        # Check for CHANGELOG
+        if (-not (Test-Path "CHANGELOG.md")) {
+            $warnings += "CHANGELOG.md file is missing"
+        }
+        
+        # Check for license
+        if (-not (Test-Path "LICENSE*")) {
+            $warnings += "LICENSE file is missing"
+        }
+        
+        if ($warnings.Count -gt 0) {
+            Write-Host "⚠️ Documentation warnings:"
+            $warnings | ForEach-Object { Write-Host "  - $_" }
+        } else {
+            Write-Host "✅ Documentation validation passed"
+        }
+        
+        Write-Host "🎉 All validation checks completed!"

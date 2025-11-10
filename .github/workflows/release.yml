@@ -1,0 +1,248 @@
+name: Build and Release PowerBI Connector
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper version detection
+        
+    - name: Extract version from tag
+      id: version
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref_name }}"
+        Write-Host "Git tag: $tag"
+        
+        # Extract version number (remove 'v' prefix if present)
+        $version = $tag -replace '^v', ''
+        Write-Host "Extracted version: $version"
+        
+        # Validate semantic versioning
+        if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Invalid version format: $version. Expected format: x.y.z"
+            exit 1
+        }
+        
+        # Set output for other steps
+        "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        Write-Host "Version set to: $version"
+
+    - name: Update version in connector
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $pqFile = "BlackbaudJobConnector.pq"
+        
+        Write-Host "🔄 Updating connector version to $version..."
+        
+        # Read current content
+        $content = Get-Content $pqFile -Raw
+        
+        # Update the ConnectorVersion line
+        $updatedContent = $content -replace 'ConnectorVersion\s*=\s*"[\d\.]+";', "ConnectorVersion = `"$version`";"
+        
+        # Verify the replacement worked
+        if ($updatedContent -match 'ConnectorVersion\s*=\s*"([\d\.]+)";') {
+            $newVersion = $matches[1]
+            if ($newVersion -eq $version) {
+                Write-Host "✅ Successfully updated ConnectorVersion to $version"
+            } else {
+                Write-Error "❌ Version update failed. Expected $version, got $newVersion"
+                exit 1
+            }
+        } else {
+            Write-Error "❌ Could not find ConnectorVersion in the file"
+            exit 1
+        }
+        
+        # Save updated content
+        $updatedContent | Set-Content $pqFile -NoNewline
+        Write-Host "✅ Connector file updated"
+
+    - name: Create build directory
+      shell: pwsh
+      run: |
+        Write-Host "📁 Creating build directory structure..."
+        
+        $buildDir = "build-output"
+        $mezDir = "$buildDir/mez-contents"
+        $resourcesDir = "$mezDir/Resources"
+        
+        New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $mezDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $resourcesDir -Force | Out-Null
+        
+        Write-Host "✅ Build directories created"
+
+    - name: Prepare MEZ contents
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $buildDir = "build-output"
+        $mezDir = "$buildDir/mez-contents"
+        $resourcesDir = "$mezDir/Resources"
+        
+        Write-Host "📦 Preparing MEZ package contents..."
+        
+        # Copy .pq file as .m file
+        Copy-Item "BlackbaudJobConnector.pq" "$mezDir/BlackbaudJobConnector.m"
+        Write-Host "✅ Copied connector file as .m"
+        
+        # Create [Content_Types].xml
+        $contentTypes = @'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="m" ContentType="application/x-powerquery-m"/>
+    <Default Extension="json" ContentType="application/json"/>
+    <Default Extension="png" ContentType="image/png"/>
+</Types>
+'@
+        $contentTypes | Set-Content "$mezDir/[Content_Types].xml" -Encoding UTF8
+        Write-Host "✅ Created Content_Types.xml"
+        
+        # Create metadata.json
+        $metadata = @{
+            name = "BlackbaudJobConnector"
+            displayName = "Blackbaud Query Connector"
+            description = "PowerBI connector for Blackbaud SKY API Query service with async execution support"
+            version = $version
+            author = "Blackbaud"
+            category = "Online Services"
+            beta = $true
+            learnMoreUrl = "https://developer.blackbaud.com/skyapi/"
+            supportUrl = "https://github.com/blackbaud-joshlyford/powerbi-query-connector"
+        } | ConvertTo-Json -Depth 3
+        
+        $metadata | Set-Content "$resourcesDir/metadata.json" -Encoding UTF8
+        Write-Host "✅ Created metadata.json"
+        
+        # Create a simple icon (base64 encoded 16x16 PNG)
+        # This is a minimal blue square icon - replace with proper icons later
+        $iconBase64 = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFYSURBVDiNpZM9SwNBEIafBAtbwcJCG1sLwcJCK1sLwcJaG1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sLwcJCK1sL"
+        $iconBytes = [Convert]::FromBase64String($iconBase64)
+        [System.IO.File]::WriteAllBytes("$resourcesDir/icon.png", $iconBytes)
+        Write-Host "✅ Created placeholder icon"
+        
+        Write-Host "📋 MEZ contents prepared:"
+        Get-ChildItem $mezDir -Recurse | ForEach-Object { Write-Host "  $($_.FullName.Replace((Get-Location).Path, '.'))" }
+
+    - name: Create MEZ package
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $buildDir = "build-output"
+        $mezDir = "$buildDir/mez-contents"
+        $mezFile = "$buildDir/BlackbaudJobConnector-v$version.mez"
+        
+        Write-Host "🏗️ Creating MEZ package..."
+        
+        # Create ZIP file (MEZ is just a ZIP with .mez extension)
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::CreateFromDirectory($mezDir, $mezFile)
+        
+        Write-Host "✅ MEZ package created: $(Split-Path $mezFile -Leaf)"
+        
+        # Verify the package
+        if (Test-Path $mezFile) {
+            $size = (Get-Item $mezFile).Length
+            Write-Host "📊 Package size: $([math]::Round($size / 1KB, 2)) KB"
+            
+            # List contents
+            Write-Host "📋 Package contents:"
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($mezFile)
+            $zip.Entries | ForEach-Object { Write-Host "  $($_.FullName)" }
+            $zip.Dispose()
+        } else {
+            Write-Error "❌ MEZ package creation failed"
+            exit 1
+        }
+
+    - name: Generate release notes
+      id: release_notes
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        
+        $releaseNotes = @"
+# Blackbaud PowerBI Connector v$version
+
+## 🎉 Release Highlights
+- PowerBI connector for Blackbaud SKY API Query service
+- Asynchronous query execution with polling
+- OAuth 2.0 + PKCE authentication
+- Automatic CSV to table conversion
+
+## 📦 Installation
+1. Download the ``BlackbaudJobConnector-v$version.mez`` file below
+2. Copy it to your PowerBI Custom Connectors folder:
+   - **PowerBI Desktop**: ``%USERPROFILE%\Documents\Power BI Desktop\Custom Connectors\``
+   - **PowerBI Service**: Upload via Power BI Admin Portal (if enabled)
+3. Restart PowerBI Desktop
+4. Enable custom connectors in PowerBI Desktop security settings
+
+## 🔧 Configuration Required
+- **Client ID**: Your Blackbaud application client ID
+- **Subscription Key**: SKY API subscription key from Blackbaud developer portal
+- **Client Secret**: Optional (leave blank for PKCE-only apps)
+
+## 📖 Documentation
+For setup instructions and usage guide, see the [project README](https://github.com/blackbaud-joshlyford/powerbi-query-connector).
+
+## 🚀 Features
+- Browse available RE queries
+- Execute queries asynchronously 
+- Monitor job progress with automatic polling
+- Download and process CSV results
+- Comprehensive error handling
+
+---
+*Built with GitHub Actions on $(Get-Date -Format "yyyy-MM-dd")*
+"@
+
+        # Save to file for the release
+        $releaseNotes | Set-Content "build-output/RELEASE_NOTES.md" -Encoding UTF8
+        
+        # Set output for release step (escape newlines for GitHub Actions)
+        $escapedNotes = $releaseNotes -replace "`r?`n", "%0A"
+        "notes=$escapedNotes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        
+        Write-Host "✅ Release notes generated"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: "Blackbaud PowerBI Connector ${{ steps.version.outputs.version }}"
+        body: ${{ steps.release_notes.outputs.notes }}
+        draft: false
+        prerelease: false
+        files: |
+          build-output/*.mez
+          build-output/RELEASE_NOTES.md
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build Summary
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        
+        Write-Host ""
+        Write-Host "🎉 Build completed successfully!"
+        Write-Host "📦 Package: BlackbaudJobConnector-v$version.mez"
+        Write-Host "🏷️ Tag: ${{ github.ref_name }}"
+        Write-Host "🔗 Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+        Write-Host ""
+        Write-Host "✅ Users can now download and install the connector!"

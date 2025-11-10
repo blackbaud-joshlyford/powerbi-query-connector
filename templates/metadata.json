@@ -1,0 +1,58 @@
+{
+  "name": "BlackbaudJobConnector",
+  "displayName": "Blackbaud Query Connector",
+  "description": "PowerBI connector for Blackbaud SKY API Query service with async execution support",
+  "version": "1.0.0",
+  "author": "Blackbaud",
+  "company": "Blackbaud, Inc.",
+  "category": "Online Services",
+  "beta": true,
+  "connector": {
+    "type": "Custom",
+    "capabilities": [
+      "OAuth2",
+      "AsyncQuery",
+      "DataSource"
+    ],
+    "authentication": {
+      "oauth2": {
+        "flow": "authorizationCode",
+        "pkce": true,
+        "scopes": [
+          "read"
+        ]
+      }
+    }
+  },
+  "urls": {
+    "learnMoreUrl": "https://developer.blackbaud.com/skyapi/",
+    "supportUrl": "https://github.com/blackbaud-joshlyford/powerbi-query-connector",
+    "privacyUrl": "https://www.blackbaud.com/privacy-policy/privacy-policy",
+    "licenseUrl": "https://github.com/blackbaud-joshlyford/powerbi-query-connector/blob/main/LICENSE"
+  },
+  "icons": {
+    "icon16": "icon16.png",
+    "icon20": "icon20.png",
+    "icon24": "icon24.png",
+    "icon32": "icon32.png"
+  },
+  "build": {
+    "buildDate": "2025-11-07T00:00:00Z",
+    "buildTool": "PowerShell",
+    "sourceFiles": [
+      "BlackbaudJobConnector.pq"
+    ]
+  },
+  "requirements": {
+    "powerBiDesktop": "2.0.0",
+    "powerQuery": "1.0.0"
+  },
+  "tags": [
+    "blackbaud",
+    "skyapi",
+    "query",
+    "async",
+    "oauth",
+    "nonprofit"
+  ]
+}
