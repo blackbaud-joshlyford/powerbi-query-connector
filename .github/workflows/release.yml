@@ -108,7 +108,7 @@ jobs:
         $xmlPng = '    <Default Extension="png" ContentType="image/png"/>'
         $xmlClose = '</Types>'
         $contentTypes = "$xmlHeader`n$xmlTypes`n$xmlM`n$xmlJson`n$xmlPng`n$xmlClose"
-        $contentTypes | Set-Content "$mezDir/[Content_Types].xml" -Encoding UTF8
+        $contentTypes | Set-Content "$mezDir/[Content_Types].xml" -Encoding utf8
         Write-Host "✅ Created Content_Types.xml"
         
         # Create metadata.json
@@ -124,7 +124,7 @@ jobs:
             supportUrl = "https://github.com/blackbaud-joshlyford/powerbi-query-connector"
         } | ConvertTo-Json -Depth 3
         
-        $metadata | Set-Content "$resourcesDir/metadata.json" -Encoding UTF8
+        $metadata | Set-Content "$resourcesDir/metadata.json" -Encoding utf8
         Write-Host "✅ Created metadata.json"
         
         # Create a simple icon (base64 encoded 16x16 PNG)
@@ -214,7 +214,7 @@ jobs:
         $releaseNotes = $releaseNotesLines -join "`n"
 
         # Save to file for the release
-        $releaseNotes | Set-Content "build-output/RELEASE_NOTES.md" -Encoding UTF8
+        $releaseNotes | Set-Content "build-output/RELEASE_NOTES.md" -Encoding utf8
         
         # Set output for release step (escape newlines for GitHub Actions)
         $escapedNotes = $releaseNotes -replace "`r?`n", "%0A"
