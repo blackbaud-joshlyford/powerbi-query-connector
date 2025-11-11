@@ -105,7 +105,7 @@ Analyzes code for quality issues and best practices:
 
 ## Output Locations
 
-- **MEZ packages**: `build-output/BlackbaudJobConnector-{version}.mez`
+- **MEZ packages**: `build-output/BlackbaudJobConnector.mez`
 - **Build artifacts**: `build-output/mez-contents/`
 - **Security reports**: Specified output file or console
 

@@ -4,7 +4,7 @@ section BlackbaudJobConnector;
 [DataSource.Kind="BlackbaudJobConnector", Publish="BlackbaudJobConnector.Publish"]
 shared BlackbaudJobConnector.Contents = Value.ReplaceType(BlackbaudJobConnectorImpl, BlackbaudJobConnectorType);
 
-ConnectorVersion = "1.0.0";
+ConnectorVersion = "2025.11.11.1";
 SharedLibrary = #shared;
 Crypto = if Record.HasFields(SharedLibrary, "Crypto") then SharedLibrary[Crypto] else null;
 CryptoAlgorithm = if Record.HasFields(SharedLibrary, "CryptoAlgorithm") then SharedLibrary[CryptoAlgorithm] else null;

@@ -147,7 +147,9 @@ jobs:
         $version = "${{ steps.version.outputs.version }}"
         $buildDir = "build-output"
         $mezDir = "$buildDir/mez-contents"
-        $mezFile = "$buildDir/BlackbaudJobConnector-v$version.mez"
+                # Create MEZ package (fixed filename for easier installation)
+        Write-Host "📦 Creating MEZ package..." -ForegroundColor Yellow
+        $mezFile = "$buildDir/BlackbaudJobConnector.mez"
         
         Write-Host "🏗️ Creating MEZ package..."
         
@@ -190,7 +192,7 @@ jobs:
             "• Automatic CSV to table conversion",
             "",
             "**📦 Installation**",
-            "1. Download the ``BlackbaudJobConnector-v$version.mez`` file below",
+            "1. Download the ``BlackbaudJobConnector.mez`` file below",
             "2. Copy it to your PowerBI Custom Connectors folder:",
             "   • **PowerBI Desktop**: ``%USERPROFILE%\Documents\Power BI Desktop\Custom Connectors\``",
             "   • **PowerBI Service**: Upload via Power BI Admin Portal (if enabled)",
@@ -265,7 +267,7 @@ jobs:
         
         Write-Host ""
         Write-Host "🎉 Build completed successfully!"
-        Write-Host "📦 Package: BlackbaudJobConnector-v$version.mez"
+        Write-Host "📦 Package: BlackbaudJobConnector.mez"
         Write-Host "🏷️ Tag: ${{ github.ref_name }}"
         Write-Host "🔗 Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
         Write-Host ""

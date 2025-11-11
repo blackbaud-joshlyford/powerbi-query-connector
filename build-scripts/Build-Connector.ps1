@@ -112,8 +112,8 @@ try {
         Write-Host "✅ Created placeholder icon" -ForegroundColor Green
     }
     
-    # Create MEZ package
-    $mezFile = "$OutputDir/BlackbaudJobConnector-$Version.mez"
+    # Create MEZ package (fixed filename for easier installation)
+    $mezFile = "$OutputDir/BlackbaudJobConnector.mez"
     Write-Host "📦 Creating MEZ package..." -ForegroundColor Yellow
     
     Add-Type -AssemblyName System.IO.Compression.FileSystem
