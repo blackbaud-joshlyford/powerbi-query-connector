@@ -12,6 +12,9 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     
+    # Only run releases from the main repository, not forks
+    if: github.repository == 'blackbaud-joshlyford/powerbi-query-connector'
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -217,9 +220,10 @@ jobs:
         # Save to file for the release
         [System.IO.File]::WriteAllText("build-output/RELEASE_NOTES.md", $releaseNotes, [System.Text.Encoding]::UTF8)
         
-        # Set output for release step (escape newlines for GitHub Actions)
-        $escapedNotes = $releaseNotes -replace "`r?`n", "%0A"
-        "notes=$escapedNotes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        # Set output for release step - use the file instead of escaped text
+        "notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $releaseNotes | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         
         Write-Host "✅ Release notes generated"
 
